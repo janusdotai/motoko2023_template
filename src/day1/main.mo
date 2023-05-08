@@ -29,10 +29,8 @@ actor class Calculator() {
         if(counter == 0){
             return null;
         };
-
-        var result : Float = 0;
-        result := counter / x;
-        return ?result;
+        counter := counter / x;
+        return ?counter;
 
     };
     
