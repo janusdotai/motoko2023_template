@@ -6,7 +6,7 @@ import Main "main";
 import Type "Types";
 import Text "mo:base/Text";
 
-let day2Actor = await Main.Homework();
+let day2Actor = await Main.HomeworkManager();
 
 let assertTrue = MoSpec.assertTrue;
 let describe = MoSpec.describe;
