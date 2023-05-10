@@ -20,6 +20,10 @@ actor class StudentWall() {
   stable var messageId : Nat = 0;
   let wall = HashMap.HashMap<Nat, Message>(1, Nat.equal, Hash.hash);
 
+  private func _isGreaterVote(x : Message, y : Message) : Order.Order {
+    return Int.compare(y.vote, x.vote);
+  }; 
+
   public shared ({ caller }) func writeMessage(c : Content) : async Nat {
     messageId := wall.size();
     Debug.print(debug_show(messageId));
@@ -29,7 +33,7 @@ actor class StudentWall() {
       content = c;
       creator = caller;
     };    
-    wall.put(messageId, message);    
+    wall.put(messageId, message);
     return messageId;
   };
 
@@ -75,7 +79,7 @@ actor class StudentWall() {
           return #err "permission denied";
         };
         wall.delete(messageId);
-        return #ok;
+        return #ok; 
       };
     };
   };
@@ -91,7 +95,7 @@ actor class StudentWall() {
            content = message.content;
            creator = message.creator;           
         };
-        wall.put(messageId, clone);
+        wall.put(messageId, clone);        
         return #ok;
       };
     };
@@ -114,19 +118,13 @@ actor class StudentWall() {
     };
   };
 
-  public func getAllMessages() : async [Message] {
-    let posts : Iter.Iter<Message> = wall.vals();
-    return Iter.toArray(posts);
-  };
+  public func getAllMessages() : async [Message] {    
+    return Iter.toArray(wall.vals());
+  };  
 
-  private func isGreaterVote(x : Message, y : Message) : Order.Order {
-    return Int.compare(y.vote, x.vote);
-  }; 
-
-  public func getAllMessagesRanked() : async [Message] {    
-    let posts : Iter.Iter<Message> = wall.vals();
-    let post_array = Iter.toArray(posts);
-    let sorted = Array.sort(post_array, isGreaterVote);
+  public func getAllMessagesRanked() : async [Message] {        
+    let post_array = Iter.toArray(wall.vals());
+    let sorted = Array.sort(post_array, _isGreaterVote);
     return sorted;
   };
 
