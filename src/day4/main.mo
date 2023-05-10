@@ -4,6 +4,8 @@ import Result "mo:base/Result";
 import Text "mo:base/Text";
 import Option "mo:base/Option";
 import Debug "mo:base/Debug";
+import Nat "mo:base/Nat";
+import Hash "mo:base/Hash";
 
 import Account "Account";
 // NOTE: only use for local dev,
@@ -11,14 +13,17 @@ import Account "Account";
 import BootcampLocalActor "BootcampLocalActor";
 
 actor class MotoCoin() {
+  
   public type Account = Account.Account;
 
+  let ledger = TrieMap.TrieMap<Account, Nat>(Account.accountsEqual, Account.accountsHash);
+
   public query func name() : async Text {
-    return "";
+    return "MotoCoin";
   };
 
   public query func symbol() : async Text {
-    return "";
+    return "MOC";
   };
 
   public func totalSupply() : async Nat {
@@ -26,7 +31,14 @@ actor class MotoCoin() {
   };
 
   public query func balanceOf(account : Account) : async (Nat) {
-    return 9;
+    let balance = ledger.get(account);
+    switch(balance){
+      case null
+        return 0;
+      case(?balance){
+        return balance;
+      };
+    };    
   };
 
   public shared ({ caller }) func transfer(
