@@ -18,41 +18,7 @@ actor class MotoCoin() {
 
   private type Account = Account.Account;  
 
-  let ledger = TrieMap.TrieMap<Account, Nat>(Account.accountsEqual, Account.accountsHash);
- 
-
-  // let textPrincipals: [Text] = [
-  //       "un4fu-tqaaa-aaaab-qadjq-cai",
-  //       "un4fu-tqaaa-aaaac-qadjr-cai",
-  //       "un4fu-tqaaa-aaaad-qadjs-cai",
-  //       "un4fu-tqaaa-aaaae-qadjt-cai",
-  //       "un4fu-tqaaa-aaaaf-qadjv-cai",
-  //       "un4fu-tqaaa-aaaag-qadjw-cai",
-  //       "un4fu-tqaaa-aaaah-qadjx-cai",
-  //       "un4fu-tqaaa-aaaai-qadjy-cai",
-  //       "un4fu-tqaaa-aaaaj-qadjz-cai",
-  //       "un4fu-tqaaa-aaaak-qadk1-cai",
-  //   ];
-
-
-  //   private func _getAllStudentsPrincipalTest() : async[Principal] {
-  //     let principalsText:Buffer.Buffer<Text> = Buffer.fromArray(textPrincipals);
-  //     var index:Nat = 0;
-  //     var principalsReady = Buffer.Buffer<Principal>(10);
-      
-  //     Buffer.iterate<Text>(principalsText, func (x) {
-  //       let newPrincipal = Principal.fromText(principalsText.get(index));
-  //       principalsReady.add(newPrincipal);
-  //     });
-
-  //     /* while(index<= principalsText.size()-1){
-  //     let newPrincipal = Principal.fromText(principalsText.get(index));
-  //     principalsReady.put(index,newPrincipal);
-  //     index += 1;
-  //     };*/
-
-  //     return Buffer.toArray(principalsReady);
-  //   };
+  let ledger = TrieMap.TrieMap<Account, Nat>(Account.accountsEqual, Account.accountsHash); 
 
   public query func name() : async Text {
     return "MotoCoin";
@@ -123,13 +89,16 @@ actor class MotoCoin() {
 
   public func airdrop() : async () {  
     
+    //local
+    let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
+    var students = await bootcampTestActor.getAllStudentsPrincipal();
+
+    //prod
     // let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
     //   getAllStudentsPrincipal : shared() -> async [Principal];
     // };
-
-    let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
-
-    var students = await bootcampTestActor.getAllStudentsPrincipal();
+    // var students = await bootcampPeople.getAllStudentsPrincipal();
+   
     for(student in students.vals()){
       let a : Account = {
         owner = student;
