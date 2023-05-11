@@ -4,7 +4,7 @@ import Text "mo:base/Text";
 import MoSpec "mo:mospec/MoSpec";
 
 import Main "main";
-import Calculator "Calculator";
+import simpleCalculator "Calculator";
 import Type "Types";
 import Http "Http";
 
@@ -21,7 +21,7 @@ let run = MoSpec.run;
 
 let studentTestProfile : Type.StudentProfile = {
   name = "Tester";
-  Team = "cozy-test";
+  team = "cozy-test";
   graduate = false;
 };
 let runnerPrincipal = Principal.fromText("wo5qg-ysjiq-5da");
@@ -73,7 +73,7 @@ let success = run([
         do {
           let newStudentProfile : Type.StudentProfile = {
             name = "Tester2";
-            Team = "other-team";
+            team = "other-team";
             graduate = false;
           };
           let response = await day5Actor.updateMyProfile(newStudentProfile);
@@ -114,7 +114,7 @@ let success = run([
       it(
         "should test a given canister",
         do {
-          let calculatorActor = await Calculator.Calculator();
+          let calculatorActor = await simpleCalculator.simpleCalculator();
           let response = await day5Actor.test(Principal.fromActor(calculatorActor));
           switch (response) {
             case (#ok) {
