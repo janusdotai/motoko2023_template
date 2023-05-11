@@ -6,17 +6,53 @@ import Option "mo:base/Option";
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
 import Hash "mo:base/Hash";
+import Buffer "mo:base/Buffer";
+import Principal "mo:base/Principal";
 
 import Account "Account";
 // NOTE: only use for local dev,
 // when deploying to IC, import from "rww3b-zqaaa-aaaam-abioa-cai"
-//import BootcampLocalActor "BootcampLocalActor";
+import BootcampLocalActor "BootcampLocalActor";
 
 actor class MotoCoin() {
 
   private type Account = Account.Account;  
 
   let ledger = TrieMap.TrieMap<Account, Nat>(Account.accountsEqual, Account.accountsHash);
+ 
+
+  // let textPrincipals: [Text] = [
+  //       "un4fu-tqaaa-aaaab-qadjq-cai",
+  //       "un4fu-tqaaa-aaaac-qadjr-cai",
+  //       "un4fu-tqaaa-aaaad-qadjs-cai",
+  //       "un4fu-tqaaa-aaaae-qadjt-cai",
+  //       "un4fu-tqaaa-aaaaf-qadjv-cai",
+  //       "un4fu-tqaaa-aaaag-qadjw-cai",
+  //       "un4fu-tqaaa-aaaah-qadjx-cai",
+  //       "un4fu-tqaaa-aaaai-qadjy-cai",
+  //       "un4fu-tqaaa-aaaaj-qadjz-cai",
+  //       "un4fu-tqaaa-aaaak-qadk1-cai",
+  //   ];
+
+
+  //   private func _getAllStudentsPrincipalTest() : async[Principal] {
+  //     let principalsText:Buffer.Buffer<Text> = Buffer.fromArray(textPrincipals);
+  //     var index:Nat = 0;
+  //     var principalsReady = Buffer.Buffer<Principal>(10);
+      
+  //     Buffer.iterate<Text>(principalsText, func (x) {
+  //       let newPrincipal = Principal.fromText(principalsText.get(index));
+  //       principalsReady.add(newPrincipal);
+  //     });
+
+  //     /* while(index<= principalsText.size()-1){
+  //     let newPrincipal = Principal.fromText(principalsText.get(index));
+  //     principalsReady.put(index,newPrincipal);
+  //     index += 1;
+  //     };*/
+
+  //     return Buffer.toArray(principalsReady);
+  //   };
 
   public query func name() : async Text {
     return "MotoCoin";
@@ -56,34 +92,51 @@ actor class MotoCoin() {
     if(is_owner == false){
       return #err "no permission to send funds";
     };
-
-    //ensure caller has enough $ to send
+    
     let fromBalance = ledger.get(from);
+  
     switch(fromBalance){
       case null
         return #err "from account has no balance";
-      case (?fromBalance){        
+      case (?fromBalance){         
+        //ensure caller has enough $ to send
         if(fromBalance < amount){
           return #err "from account does not have enough funds to transfer";
         };
-        //decrement sender
+        //decrement from
         let new_from_balance : Nat = fromBalance - amount;
         ledger.put(from, new_from_balance);
-        //award receiver        
-        ledger.put(to, amount);
-        return #ok;
+
+        //increment to        
+        var toBalance = ledger.get(to);        
+        var toBalanceNotNull : Nat = switch toBalance {
+          case null 0;
+          case (?Nat) Nat;
+        };
+        toBalanceNotNull := toBalanceNotNull + amount;
+        ledger.put(to, toBalanceNotNull);
+        return #ok;   
       };
     };  
-
+    return #err "nope";
   };
 
-  public func airdrop() : async () {
+  public func airdrop() : async () {  
+    
+    // let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
+    //   getAllStudentsPrincipal : shared() -> async [Principal];
+    // };
 
-    let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
-      getAllStudentsPrincipal : shared() -> async [Principal];
+    let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
+
+    var students = await bootcampTestActor.getAllStudentsPrincipal();
+    for(student in students.vals()){
+      let a : Account = {
+        owner = student;
+        subaccount = null;
+      };
+      ledger.put(a, 100);
     };
-    var stuff = await bootcampPeople.getAllStudentsPrincipal();    
 
-    return ();
   };
 };

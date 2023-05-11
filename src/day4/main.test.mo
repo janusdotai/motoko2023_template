@@ -105,6 +105,8 @@ let success = run([
             case (#ok) {
               let senderBalance = await day4Actor.balanceOf(senderAccount);
               let receiverBalance = await day4Actor.balanceOf(receiverAccount);
+              Debug.print(debug_show(senderBalance));
+              Debug.print(debug_show(receiverBalance));
               assertTrue(senderBalance == 50 and receiverBalance == 150);
             };
             case (#err(message)) {
