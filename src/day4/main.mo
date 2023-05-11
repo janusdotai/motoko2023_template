@@ -59,8 +59,7 @@ actor class MotoCoin() {
       return #err "no permission to send funds";
     };
     
-    let fromBalance = ledger.get(from);
-  
+    let fromBalance = ledger.get(from);  
     switch(fromBalance){
       case null
         return #err "from account has no balance";
@@ -73,31 +72,38 @@ actor class MotoCoin() {
         let new_from_balance : Nat = fromBalance - amount;
         ledger.put(from, new_from_balance);
 
-        //increment to        
-        var toBalance = ledger.get(to);        
+        //increment to
+        var toBalance = ledger.get(to);
+        //var toBalance = Option.unwrap(ledger.get(to));
         var toBalanceNotNull : Nat = switch toBalance {
           case null 0;
           case (?Nat) Nat;
         };
+
         toBalanceNotNull := toBalanceNotNull + amount;
         ledger.put(to, toBalanceNotNull);
-        return #ok;   
+        return #ok;
       };
     };  
     return #err "nope";
   };
 
-  public func airdrop() : async () {  
+  public func airdrop() : async Result.Result<(), Text> {  
     
     //local
-    let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
-    var students = await bootcampTestActor.getAllStudentsPrincipal();
+    // let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
+    // var students = await bootcampTestActor.getAllStudentsPrincipal();
+    //var students = await getAllStudentsPrincipalTest();
 
     //prod
-    // let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
-    //   getAllStudentsPrincipal : shared() -> async [Principal];
-    // };
-    // var students = await bootcampPeople.getAllStudentsPrincipal();
+    let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
+      getAllStudentsPrincipal : shared() -> async [Principal];
+    };
+    var students = await bootcampPeople.getAllStudentsPrincipal();
+
+    if(students.size() == 0){
+      return #err "no students registered";
+    };
    
     for(student in students.vals()){
       let a : Account = {
@@ -106,6 +112,49 @@ actor class MotoCoin() {
       };
       ledger.put(a, 100);
     };
+    return #ok;
+  };
+
+  public func getAllHolders() : async [Principal] {
+    // let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
+    // var students = await bootcampTestActor.getAllStudentsPrincipal();
+
+    let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
+      getAllStudentsPrincipal : shared() -> async [Principal];
+    };
+    
+    var students = await bootcampPeople.getAllStudentsPrincipal();
+    return students;
 
   };
+
+
+
+    // let textPrincipals: [Text] = [
+    //     "un4fu-tqaaa-aaaab-qadjq-cai",
+    //     "un4fu-tqaaa-aaaac-qadjr-cai",
+    //     "un4fu-tqaaa-aaaad-qadjs-cai",
+    //     "un4fu-tqaaa-aaaae-qadjt-cai",
+    //     "un4fu-tqaaa-aaaaf-qadjv-cai",
+    //     "un4fu-tqaaa-aaaag-qadjw-cai",
+    //     "un4fu-tqaaa-aaaah-qadjx-cai",
+    //     "un4fu-tqaaa-aaaai-qadjy-cai",
+    //     "un4fu-tqaaa-aaaaj-qadjz-cai",
+    //     "un4fu-tqaaa-aaaak-qadk1-cai",
+    // ];
+
+
+    // public shared func getAllStudentsPrincipalTest():async[Principal]{
+    //   let principalsText:Buffer.Buffer<Text> = Buffer.fromArray(textPrincipals);
+    //   var index:Nat = 0;
+    //   var principalsReady = Buffer.Buffer<Principal>(10);
+
+    //   Buffer.iterate<Text>(principalsText, func (x) {
+    //     let newPrincipal = Principal.fromText(principalsText.get(index));
+    //     principalsReady.add(newPrincipal);
+    //   });      
+    //   return Buffer.toArray(principalsReady);
+
+    // };
+
 };

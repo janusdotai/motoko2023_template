@@ -49,9 +49,8 @@ let success = run([
       it(
         "should airdrop once to all Bootcamp students coin symbol",
         do {
-          await day4Actor.airdrop();
-          await day4Actor.airdrop(); // checking it does not airdrop twice
-
+          var a = await day4Actor.airdrop();
+          var b = await day4Actor.airdrop(); // checking it does not airdrop twice
           true // will leave to indirectly test on totalSupply
         },
       ),
