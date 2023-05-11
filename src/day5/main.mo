@@ -18,6 +18,12 @@ import Type "Types";
 actor class Verifier() {
   type StudentProfile = Type.StudentProfile;
 
+  let studentProfileStore : HashMap.HashMap<Pricipal, StudentProfile>(1, Principal.equal, Principal.hash);
+
+  //let wall = HashMap.HashMap<Nat, Message>(1, Nat.equal, Hash.hash);
+  //let ledger = TrieMap.TrieMap<Account, Nat>(Account.accountsEqual, Account.accountsHash); 
+  
+
   // STEP 1 - BEGIN
   public shared ({ caller }) func addMyProfile(profile : StudentProfile) : async Result.Result<(), Text> {
     return #err("not implemented");

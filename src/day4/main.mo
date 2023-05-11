@@ -115,18 +115,18 @@ actor class MotoCoin() {
     return #ok;
   };
 
-  public func getAllHolders() : async [Principal] {
-    // let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
-    // var students = await bootcampTestActor.getAllStudentsPrincipal();
+  // public func getAllHolders() : async [Principal] {
+  //   // let bootcampTestActor = await BootcampLocalActor.BootcampLocalActor();
+  //   // var students = await bootcampTestActor.getAllStudentsPrincipal();
 
-    let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
-      getAllStudentsPrincipal : shared() -> async [Principal];
-    };
+  //   let bootcampPeople = actor("rww3b-zqaaa-aaaam-abioa-cai") : actor {
+  //     getAllStudentsPrincipal : shared() -> async [Principal];
+  //   };
     
-    var students = await bootcampPeople.getAllStudentsPrincipal();
-    return students;
+  //   var students = await bootcampPeople.getAllStudentsPrincipal();
+  //   return students;
 
-  };
+  // };
 
 
 
