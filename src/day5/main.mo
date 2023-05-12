@@ -148,26 +148,67 @@ actor class Verifier() {
 
     }catch(e: Error){
 
-      var msg = Error.message(e);
-      var parsed_controllers = await parseControllersFromCanisterStatusErrorIfCallerNotController(msg);
+      let msg = Error.message(e);
+      let parsed_controllers = await parseControllersFromCanisterStatusErrorIfCallerNotController(msg);
       for(parsed_controller in parsed_controllers.vals()){
           if(parsed_controller == p){
             return #ok true;
           }
       };
-      return #err("owner not found on controller");
-      
+      return #err("owner not found on controller");      
     };    
-    
     return #err("owner not found on controller");
-
   };
-  
+
+  // public type TestResult = Result.Result<(), TestError>;
+  // public type TestError = {
+  //   #UnexpectedValue : Text;
+  //   #UnexpectedError : Text;
+  // };
 
   // STEP 4 - BEGIN
   public shared ({ caller }) func verifyWork(canisterId : Principal, p : Principal) : async Result.Result<Bool, Text> {
-    return #err("not implemented");
+
+    //get student profile
+    var student = await seeAProfile(p);
+    switch(student){      
+      case (#ok(student))
+        Debug.print("found the student, proceeding the next step...");
+      case (_)        
+        return #err("student not found, please add first");
+    };
+    
+    //test canister
+    var test_result = await test(canisterId); //async TestResult {
+    switch(test_result){
+      case (#err(#UnexpectedValue(err_msg))){
+          Debug.print("canister test failed calculator logic");
+          return #err err_msg;
+      };
+      case (#err(#UnexpectedError(err_msg))){
+          Debug.print("canister test failed for unknown reason");
+          return #err err_msg;
+      };    
+      case (#ok(Bool))
+        Debug.print("canister test PASSED");
+    };
+    
+    //verify ownership of canister
+    var verify_result = await verifyOwnership(canisterId, p); //Result.Result<Bool, Text>
+    switch(verify_result){
+      case (#err(Text))
+        return #err("verifyOwnership failed");
+      case (#ok(Bool))  
+        Debug.print("verifyOwnership PASSED");
+        //return #ok(true);
+    };
+
+    //graduate student
+
+    return #ok(true);
   };
+
+
   // STEP 4 - END
 
   // STEP 5 - BEGIN
