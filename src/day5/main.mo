@@ -135,7 +135,7 @@ actor class Verifier() {
 
   };  
   
-   private let IC_CANISTER = actor "aaaaa-aa" : actor { canister_status : { canister_id : Principal } -> async { controllers : [Principal] }; };
+  private let IC_CANISTER = actor "aaaaa-aa" : actor { canister_status : { canister_id : Principal } -> async { controllers : [Principal] }; };
 
   // STEP 3 - BEGIN
   // NOTE: Not possible to develop locally,
@@ -159,10 +159,8 @@ actor class Verifier() {
         return true;
       };      
       return false;
-    };
-    
-  };
-  
+    };    
+  };  
  
   // STEP 4 - BEGIN
   public shared ({ caller }) func verifyWork(canisterId : Principal, p : Principal) : async Result.Result<(), Text> {
