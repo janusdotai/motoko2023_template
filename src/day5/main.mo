@@ -11,6 +11,7 @@ import Timer "mo:base/Timer";
 import Debug "mo:base/Debug";
 import Buffer "mo:base/Buffer";
 import Iter "mo:base/Iter";
+import Option "mo:base/Option";
 
 import IC "Ic";
 import HTTP "Http";
@@ -63,6 +64,10 @@ actor class Verifier() {
   };
 
   public shared ({ caller }) func deleteMyProfile() : async Result.Result<(), Text> {
+    // if (Principal.isAnonymous(caller)) {
+    //   return #err "You must be Logged In"
+    // };
+   
     var removed = studentProfileStore.remove(caller);
     switch(removed){
       case null
@@ -80,183 +85,174 @@ actor class Verifier() {
   public type TestError = Type.TestError;
 
   //public type ManagementCanister = IC.ManagementCanister;
-  public type CanisterId = IC.CanisterId;
-  public type CanisterSettings = IC.CanisterSettings;
+  //public type CanisterId = IC.CanisterId;
+  //public type CanisterSettings = IC.CanisterSettings;
 
   public func test(canisterId : Principal) : async TestResult {
 
-    var pid = Principal.toText(canisterId);
+    let pid = Principal.toText(canisterId);    
     let calculator = actor(pid) : actor {
       add : shared(n : Int) -> async Int;
       sub : shared(n : Int) -> async Int;
       reset: shared() -> async Int;
     };
 
-    try{
+    try{     
 
-      var resetResult = await calculator.reset();
+      let resetResult = await calculator.reset();
       if(resetResult != 0){
         return #err(#UnexpectedValue("reset should be 0 "));          
       };
 
-      var addedResult = await calculator.add(1);
+      let addedResult = await calculator.add(1);
       if(addedResult != 1){
         return #err(#UnexpectedValue("added should be 1"));
       };
-
-      var sub = await calculator.sub(1);
-      if(addedResult != 0){
-        return #err(#UnexpectedValue("sub should be back to 0"));
+     
+      let subResult = await calculator.sub(1);
+      if(subResult != 0){
+        return #err(#UnexpectedValue("sub should yield -1"));
       };
 
       return #ok; 
 
     }catch(e : Error){      
       //var msg = Error.message(e);
-      return #err(#UnexpectedError("An error occured when calling canister calculator"));
+      let err_msg = Error.message(e);
+      return #err(#UnexpectedError("An error occured when calling canister calculator " #err_msg));
     };
 
   };  
   
+   private let IC_CANISTER = actor "aaaaa-aa" : actor { canister_status : { canister_id : Principal } -> async { controllers : [Principal] }; };
 
   // STEP 3 - BEGIN
   // NOTE: Not possible to develop locally,
   // as actor "aaaa-aa" (aka the IC itself, exposed as an interface) does not exist locally
-  public func verifyOwnership(canisterId : Principal, p : Principal) : async Result.Result<Bool, Text> {
+  public func verifyOwnership(canisterId : Principal, p : Principal) : async Bool {
 
-    let management_controller_principal : Text = "";
+    //let management_controller_principal : Text = "aaaaa-aa";
+    // let canister_controller : actor {
+    //   canister_status : ( canister_id: CanisterId ) -> async ({
+    //     status : { #running; #stopping; #stopped };
+    //     settings: CanisterSettings;
+    //     module_hash: ?Blob;
+    //     memory_size: Nat;
+    //     cycles: Nat;
+    //     idle_cycles_burned_per_day: Nat;
+    //   })} = actor(management_controller_principal);
 
-    let canister_controller = actor(management_controller_principal) : actor {
-      canister_status : ( canister_id: CanisterId ) -> async ({
-        status : { #running; #stopping; #stopped };
-        settings: CanisterSettings;
-        module_hash: ?Blob;
-        memory_size: Nat;
-        cycles: Nat;
-        idle_cycles_burned_per_day: Nat;
-      });
-    };
+    // let canister_controller = actor(management_controller_principal) : actor {
+    //   canister_status : ( canister_id: CanisterId ) -> async ({
+    //     status : { #running; #stopping; #stopped };
+    //     settings: CanisterSettings;
+    //     module_hash: ?Blob;
+    //     memory_size: Nat;
+    //     cycles: Nat;
+    //     idle_cycles_burned_per_day: Nat;
+    //   });
+    // };
 
     try{
-
-      let status = await canister_controller.canister_status(canisterId);
-      for(owner in status.settings.controllers.vals()){
+      let status = await IC_CANISTER.canister_status({ canister_id = canisterId; });
+      //let status = await canister_controller.canister_status(canisterId);
+      for(owner in status.controllers.vals()){
         if(owner == p){
-            return #ok true;
+            return true;
         };
       };
+      return false;
 
     }catch(e: Error){
-
       let msg = Error.message(e);
-      let parsed_controllers = await parseControllersFromCanisterStatusErrorIfCallerNotController(msg);
-      for(parsed_controller in parsed_controllers.vals()){
-          if(parsed_controller == p){
-            return #ok true;
-          }
-      };
-      return #err("owner not found on controller");      
-    };    
-    return #err("owner not found on controller");
-  };
-
-  // public type TestResult = Result.Result<(), TestError>;
-  // public type TestError = {
-  //   #UnexpectedValue : Text;
-  //   #UnexpectedError : Text;
-  // };
-
-  // STEP 4 - BEGIN
-  public shared ({ caller }) func verifyWork(canisterId : Principal, p : Principal) : async Result.Result<Bool, Text> {
-
-    //get student profile
-    var student = await seeAProfile(p);
-    switch(student){      
-      case (#ok(student))
-        Debug.print("found the student, proceeding the next step...");
-      case (_)        
-        return #err("student not found, please add first");
+      let parsed_controllers = parseControllersFromCanisterStatusErrorIfCallerNotController(msg);
+      var isOwner : ?Principal = Array.find<Principal>(parsed_controllers, func x = x == p);
+      if (isOwner != null) {
+        return true;
+      };      
+      // for(parsed_controller in parsed_controllers.vals()){
+      //   if(parsed_controller == p){
+      //     return true;
+      //   }
+      // };
+      return false;
     };
     
+  };
+  
+ 
+  // STEP 4 - BEGIN
+  public shared ({ caller }) func verifyWork(canisterId : Principal, p : Principal) : async Result.Result<(), Text> {
+
+    //get student profile
+    let student_clone = { var team = ""; var graduate = false; var name = "" };
+
+    let student = await seeAProfile(caller);
+    switch(student){      
+      case (#ok(dude)){        
+        student_clone.team := dude.team;
+        student_clone.name := dude.name;
+        student_clone.graduate := dude.graduate;
+        Debug.print("found the student, proceeding the next step...");
+      };       
+      case (_)        
+        return #err("student not found, please add first");
+    };  
+    
     //test canister
-    var test_result = await test(canisterId); //async TestResult {
+    let test_result = await test(canisterId); //async TestResult {
     switch(test_result){
-      case (#err(#UnexpectedValue(err_msg))){
-          Debug.print("canister test failed calculator logic");
-          return #err err_msg;
+      case(#err(#UnexpectedValue(err_msg))){
+        Debug.print("canister test failed calculator logic");
+        return #err err_msg;
       };
-      case (#err(#UnexpectedError(err_msg))){
-          Debug.print("canister test failed for unknown reason");
-          return #err err_msg;
+      case(#err(#UnexpectedError(err_msg))){
+        Debug.print("canister test failed for unknown reason");
+        return #err err_msg;
       };    
-      case (#ok(Bool))
+      case(#ok)
         Debug.print("canister test PASSED");
     };
     
     //verify ownership of canister
-    var verify_result = await verifyOwnership(canisterId, p); //Result.Result<Bool, Text>
+    let verify_result = await verifyOwnership(canisterId, p); //Result.Result<Bool, Text>
     switch(verify_result){
-      case (#err(Text))
+      case (false)
         return #err("verifyOwnership failed");
-      case (#ok(Bool))  
-        Debug.print("verifyOwnership PASSED");
-        //return #ok(true);
+      case (true)
+        Debug.print("verifyOwnership PASSED");        
     };
 
-    //graduate student
-
-    return #ok(true);
-  };
-
-
-  // STEP 4 - END
-
-  // STEP 5 - BEGIN
-  public type HttpRequest = HTTP.HttpRequest;
-  public type HttpResponse = HTTP.HttpResponse;
-
-  // NOTE: Not possible to develop locally,
-  // as Timer is not running on a local replica
-  public func activateGraduation() : async () {
-    return ();
-  };
-
-  public func deactivateGraduation() : async () {
-    return ();
-  };
-
-  public query func http_request(request : HttpRequest) : async HttpResponse {
-    return ({
-      status_code = 200;
-      headers = [];
-      body = Text.encodeUtf8("");
-      streaming_strategy = null;
-    });
-  };
-  // STEP 5 - END
-
-
-  /// Parses the controllers from the error returned by canister status when the caller is not the controller
-  /// Of the canister it is calling
-  ///
-  /// TODO: This is a temporary solution until the IC exposes this information.
-  /// TODO: Note that this is a pretty fragile text parsing solution (check back in periodically for better solution)
-  ///
-  /// Example error message:
-  ///
-  /// "Only the controllers of the canister r7inp-6aaaa-aaaaa-aaabq-cai can control it.
-  /// Canister's controllers: rwlgt-iiaaa-aaaaa-aaaaa-cai 7ynmh-argba-5k6vi-75frw-kfqpa-3xtca-nmzk3-hrmvb-fydxk-w4a4k-2ae
-  /// Sender's ID: rkp4c-7iaaa-aaaaa-aaaca-cai"
-  public func parseControllersFromCanisterStatusErrorIfCallerNotController(errorMessage : Text) : async [Principal] {
-    let lines = Iter.toArray(Text.split(errorMessage, #text("\n")));
-    let words = Iter.toArray(Text.split(lines[1], #text(" ")));
-    var i = 2;
-    let controllers = Buffer.Buffer<Principal>(0);
-    while (i < words.size()) {
-      controllers.add(Principal.fromText(words[i]));
-      i += 1;
+    let update : StudentProfile = { 
+      graduate = true;
+      name = student_clone.name;
+      team = student_clone.team;
     };
-    Buffer.toArray<Principal>(controllers);
+
+    let update_result = await updateMyProfile(update);
+    switch(?update_result){
+      case(null){
+        return #ok;
+      };
+      case(_){
+        return #err "verifyWork failed at final update step";
+      };
+    };
+
+  };
+
+
+  //https://forum.dfinity.org/t/getting-a-canisters-controller-on-chain/7531/17
+  private func parseControllersFromCanisterStatusErrorIfCallerNotController(errorMessage : Text) : [Principal] {
+      let lines = Iter.toArray(Text.split(errorMessage, #text("\n")));
+      let words = Iter.toArray(Text.split(lines[1], #text(" ")));
+      var i = 2;
+      let controllers = Buffer.Buffer<Principal>(0);
+      while (i < words.size()) {
+          controllers.add(Principal.fromText(words[i]));
+          i += 1;
+      };
+      Buffer.toArray<Principal>(controllers);
   };
 
 
