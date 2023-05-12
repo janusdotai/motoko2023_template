@@ -33,15 +33,39 @@ actor class Verifier() {
   system func postupgrade() {
     data_backup := [];
   };
+
+   private func isRegistered(p : Principal) : Bool {
+    var xProfile : ?StudentProfile = studentProfileStore.get(p);
+
+    switch (xProfile) {
+      case null { 
+        return false;
+      };
+
+      case (?profile) {
+        return true
+      };
+    }
+  };
+
+  public shared query ({ caller }) func seeAllProfiles() : async [(Principal, StudentProfile)] {
+    return Iter.toArray(studentProfileStore.entries());
+  };
   
   // STEP 1 - BEGIN
   public shared ({ caller }) func addMyProfile(profile : StudentProfile) : async Result.Result<(), Text> {
+
+    // if(isRegistered(caller)){
+    //   return #err ("You are already registered (" # Principal.toText(caller) # ") ")
+    // };
+
     studentProfileStore.put(caller, profile);
-    return #ok;    
+    return #ok;
+
   };
 
-  public shared ({ caller }) func seeAProfile(p : Principal) : async Result.Result<StudentProfile, Text> {
-    var match = studentProfileStore.get(caller);
+  public shared query ({ caller }) func seeAProfile(p : Principal) : async Result.Result<StudentProfile, Text> {
+    var match = studentProfileStore.get(p);
     switch(match){
       case null
         return #err("not found");
@@ -52,6 +76,9 @@ actor class Verifier() {
   };
 
   public shared ({ caller }) func updateMyProfile(profile : StudentProfile) : async Result.Result<(), Text> {
+    if (not isRegistered(caller)) {
+      return #err ("You are not registered");
+    };
     var match = studentProfileStore.get(caller);
     switch(match){
       case null
@@ -64,10 +91,9 @@ actor class Verifier() {
   };
 
   public shared ({ caller }) func deleteMyProfile() : async Result.Result<(), Text> {
-    // if (Principal.isAnonymous(caller)) {
-    //   return #err "You must be Logged In"
-    // };
-   
+    if (not isRegistered(caller)) {
+      return #err ("You are not registered");
+    };
     var removed = studentProfileStore.remove(caller);
     switch(removed){
       case null
@@ -76,17 +102,11 @@ actor class Verifier() {
         return #ok;
       };
     }    
-  };
-
-  
+  };  
 
   // STEP 2 - BEGIN  
   public type TestResult = Type.TestResult;
-  public type TestError = Type.TestError;
-
-  //public type ManagementCanister = IC.ManagementCanister;
-  //public type CanisterId = IC.CanisterId;
-  //public type CanisterSettings = IC.CanisterSettings;
+  public type TestError = Type.TestError; 
 
   public func test(canisterId : Principal) : async TestResult {
 
@@ -130,35 +150,13 @@ actor class Verifier() {
   // NOTE: Not possible to develop locally,
   // as actor "aaaa-aa" (aka the IC itself, exposed as an interface) does not exist locally
   public func verifyOwnership(canisterId : Principal, p : Principal) : async Bool {
-
-    //let management_controller_principal : Text = "aaaaa-aa";
-    // let canister_controller : actor {
-    //   canister_status : ( canister_id: CanisterId ) -> async ({
-    //     status : { #running; #stopping; #stopped };
-    //     settings: CanisterSettings;
-    //     module_hash: ?Blob;
-    //     memory_size: Nat;
-    //     cycles: Nat;
-    //     idle_cycles_burned_per_day: Nat;
-    //   })} = actor(management_controller_principal);
-
-    // let canister_controller = actor(management_controller_principal) : actor {
-    //   canister_status : ( canister_id: CanisterId ) -> async ({
-    //     status : { #running; #stopping; #stopped };
-    //     settings: CanisterSettings;
-    //     module_hash: ?Blob;
-    //     memory_size: Nat;
-    //     cycles: Nat;
-    //     idle_cycles_burned_per_day: Nat;
-    //   });
-    // };
-
+   
     try{
       let status = await IC_CANISTER.canister_status({ canister_id = canisterId; });
       //let status = await canister_controller.canister_status(canisterId);
       for(owner in status.controllers.vals()){
         if(owner == p){
-            return true;
+          return true;
         };
       };
       return false;
@@ -170,11 +168,6 @@ actor class Verifier() {
       if (isOwner != null) {
         return true;
       };      
-      // for(parsed_controller in parsed_controllers.vals()){
-      //   if(parsed_controller == p){
-      //     return true;
-      //   }
-      // };
       return false;
     };
     
@@ -187,7 +180,7 @@ actor class Verifier() {
     //get student profile
     let student_clone = { var team = ""; var graduate = false; var name = "" };
 
-    let student = await seeAProfile(caller);
+    let student = await seeAProfile(p);
     switch(student){      
       case (#ok(dude)){        
         student_clone.team := dude.team;
@@ -201,27 +194,34 @@ actor class Verifier() {
     
     //test canister
     let test_result = await test(canisterId); //async TestResult {
-    switch(test_result){
-      case(#err(#UnexpectedValue(err_msg))){
-        Debug.print("canister test failed calculator logic");
-        return #err err_msg;
-      };
-      case(#err(#UnexpectedError(err_msg))){
-        Debug.print("canister test failed for unknown reason");
-        return #err err_msg;
-      };    
-      case(#ok)
-        Debug.print("canister test PASSED");
+    if(test_result != #ok){
+       return #err "canister failed test";
     };
+
+    // switch(test_result){
+    //   case(#err(#UnexpectedValue(err_msg))){
+    //     Debug.print("canister test failed calculator logic");
+    //     return #err err_msg;
+    //   };
+    //   case(#err(#UnexpectedError(err_msg))){
+    //     Debug.print("canister test failed for unknown reason");
+    //     return #err err_msg;
+    //   };    
+    //   case(#ok)
+    //     Debug.print("canister test PASSED");
+    // };
     
     //verify ownership of canister
     let verify_result = await verifyOwnership(canisterId, p); //Result.Result<Bool, Text>
-    switch(verify_result){
-      case (false)
-        return #err("verifyOwnership failed");
-      case (true)
-        Debug.print("verifyOwnership PASSED");        
+    if(not verify_result){
+      return #err("verifyOwnership failed");
     };
+    // switch(verify_result){
+    //   case (false)
+    //     return #err("verifyOwnership failed");
+    //   case (true)
+    //     Debug.print("verifyOwnership PASSED");        
+    // };
 
     let update : StudentProfile = { 
       graduate = true;
