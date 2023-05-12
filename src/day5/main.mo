@@ -18,7 +18,6 @@ import HTTP "Http";
 import Type "Types";
 import Calculator "Calculator";
 
-
 actor class Verifier() {
 
   type StudentProfile = Type.StudentProfile;  
@@ -34,14 +33,12 @@ actor class Verifier() {
     data_backup := [];
   };
 
-   private func isRegistered(p : Principal) : Bool {
-    var xProfile : ?StudentProfile = studentProfileStore.get(p);
-
-    switch (xProfile) {
+  private func isStudentRegistered(p : Principal) : Bool {
+    var profile : ?StudentProfile = studentProfileStore.get(p);
+    switch (profile) {
       case null { 
         return false;
       };
-
       case (?profile) {
         return true
       };
@@ -53,12 +50,7 @@ actor class Verifier() {
   };
   
   // STEP 1 - BEGIN
-  public shared ({ caller }) func addMyProfile(profile : StudentProfile) : async Result.Result<(), Text> {
-
-    // if(isRegistered(caller)){
-    //   return #err ("You are already registered (" # Principal.toText(caller) # ") ")
-    // };
-
+  public shared ({ caller }) func addMyProfile(profile : StudentProfile) : async Result.Result<(), Text> {    
     studentProfileStore.put(caller, profile);
     return #ok;
 
@@ -76,7 +68,7 @@ actor class Verifier() {
   };
 
   public shared ({ caller }) func updateMyProfile(profile : StudentProfile) : async Result.Result<(), Text> {
-    if (not isRegistered(caller)) {
+    if (not isStudentRegistered(caller)) {
       return #err ("You are not registered");
     };
     var match = studentProfileStore.get(caller);
@@ -91,7 +83,7 @@ actor class Verifier() {
   };
 
   public shared ({ caller }) func deleteMyProfile() : async Result.Result<(), Text> {
-    if (not isRegistered(caller)) {
+    if (not isStudentRegistered(caller)) {
       return #err ("You are not registered");
     };
     var removed = studentProfileStore.remove(caller);
@@ -136,8 +128,7 @@ actor class Verifier() {
 
       return #ok; 
 
-    }catch(e : Error){      
-      //var msg = Error.message(e);
+    }catch(e : Error){
       let err_msg = Error.message(e);
       return #err(#UnexpectedError("An error occured when calling canister calculator " #err_msg));
     };
@@ -152,8 +143,7 @@ actor class Verifier() {
   public func verifyOwnership(canisterId : Principal, p : Principal) : async Bool {
    
     try{
-      let status = await IC_CANISTER.canister_status({ canister_id = canisterId; });
-      //let status = await canister_controller.canister_status(canisterId);
+      let status = await IC_CANISTER.canister_status({ canister_id = canisterId; });      
       for(owner in status.controllers.vals()){
         if(owner == p){
           return true;
@@ -196,48 +186,22 @@ actor class Verifier() {
     let test_result = await test(canisterId); //async TestResult {
     if(test_result != #ok){
        return #err "canister failed test";
-    };
-
-    // switch(test_result){
-    //   case(#err(#UnexpectedValue(err_msg))){
-    //     Debug.print("canister test failed calculator logic");
-    //     return #err err_msg;
-    //   };
-    //   case(#err(#UnexpectedError(err_msg))){
-    //     Debug.print("canister test failed for unknown reason");
-    //     return #err err_msg;
-    //   };    
-    //   case(#ok)
-    //     Debug.print("canister test PASSED");
-    // };
+    };   
     
     //verify ownership of canister
     let verify_result = await verifyOwnership(canisterId, p); //Result.Result<Bool, Text>
     if(not verify_result){
       return #err("verifyOwnership failed");
-    };
-    // switch(verify_result){
-    //   case (false)
-    //     return #err("verifyOwnership failed");
-    //   case (true)
-    //     Debug.print("verifyOwnership PASSED");        
-    // };
+    };    
 
     let update : StudentProfile = { 
       graduate = true;
       name = student_clone.name;
       team = student_clone.team;
     };
+    studentProfileStore.put(p, update);
 
-    let update_result = await updateMyProfile(update);
-    switch(?update_result){
-      case(null){
-        return #ok;
-      };
-      case(_){
-        return #err "verifyWork failed at final update step";
-      };
-    };
+    return #ok;
 
   };
 
